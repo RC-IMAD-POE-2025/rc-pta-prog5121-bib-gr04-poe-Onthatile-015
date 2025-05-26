@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
-Test set: st10486338.RegistrationLogicTest
+Test set: st10486338.MessageLogicTest
 -------------------------------------------------------------------------------
-Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.033 s -- in st10486338.RegistrationLogicTest
+Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.090 s -- in st10486338.MessageLogicTest

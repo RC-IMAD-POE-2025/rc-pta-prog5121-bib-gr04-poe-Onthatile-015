@@ -150,7 +150,9 @@ public class LoginUI extends javax.swing.JFrame
 
         // Show them the result
         JOptionPane.showMessageDialog(this, status);
-        dispose(); // Close this form
+        MessageUI messageUI = new MessageUI();
+        messageUI.startMessagingInteraction();
+        
     }//GEN-LAST:event_loginbuttonActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
