@@ -7,7 +7,8 @@ import javax.swing.JFrame;
  */
 public class OnthatileLesatsi 
 {
-    // Main method to get this party started
+    // The app starts with the onboarding process, Registration will 
+    // automatically redirect to Login
     public static void main(String[] args) 
     {
         // Set up the core stuff we need

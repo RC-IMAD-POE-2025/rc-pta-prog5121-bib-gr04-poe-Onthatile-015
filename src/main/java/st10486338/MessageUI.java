@@ -8,142 +8,180 @@ import javax.swing.JOptionPane;
  * @author Onthatile Lesatsi
  */
 public class MessageUI {
+    // This will handle our new array and reporting logic
+    private final ReportingAndArrayLogic reportingLogic;
+    // This will hold the username of the logged-in user
+    private final String currentSender;
 
     /**
-     * Starts and manages the interactive messaging session.
-     * This method orchestrates the process of sending/storing multiple messages.
+     * Constructor for the Message UI
+     * @param senderIdentifier The username of the person who logged in.
      */
-    public void startMessagingInteraction() {
-        JOptionPane.showMessageDialog(null,
-                "Welcome to QuickChat",
-                "Onthatile Part 2", JOptionPane.INFORMATION_MESSAGE);
-
-        boolean continueMessaging = true;
-        while (continueMessaging) {
-            String choice = JOptionPane.showInputDialog(null,
-                    "Messaging Menu:\n1. Send Messages\n2. Show recently sent messages\n3. Quit",
-                    "Main Menu", JOptionPane.QUESTION_MESSAGE);
-
-            if (choice == null) { // User cancelled main menu
-                continueMessaging = false;
-                break;
-            }
-
-            switch (choice) {
-                case "1": // Process Messages
-                    processMessageBatch();
-                    break;
-
-                case "2": // Show Last Sent Message Details
-                    JOptionPane.showMessageDialog(null, "Coming Soon", "Last Sent Message", JOptionPane.INFORMATION_MESSAGE);
-                    break;
-
-                case "3": // Exit Messaging
-                    continueMessaging = false;
-                    break;
-
-                default:
-                    JOptionPane.showMessageDialog(null, "Invalid choice. Please select an option from the menu.", "Menu Error", JOptionPane.ERROR_MESSAGE);
-                    break;
-            }
-        }
-        JOptionPane.showMessageDialog(null, "Exiting messaging feature.", "QuickChat Messaging", JOptionPane.INFORMATION_MESSAGE);
+    public MessageUI(String senderIdentifier) {
+        this.reportingLogic = new ReportingAndArrayLogic();
+        this.currentSender = senderIdentifier; // Keep track of who is sending
     }
 
     /**
-     * Handles the processing of a batch of messages.
+     * Starts and manages the interactive messaging session.
+     */
+    public void startMessagingInteraction() {
+        JOptionPane.showMessageDialog(null,
+                "Welcome to QuickChat, " + currentSender + "!",
+                "QuickChat", JOptionPane.INFORMATION_MESSAGE);
+
+        boolean continueMessaging = true;
+        while (continueMessaging) {
+            String[] options = {"Send Messages", "View Reports", "Quit"};
+            int choice = JOptionPane.showOptionDialog(null,
+                    "What would you like to do?",
+                    "Main Menu",
+                    JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+
+            switch (choice) {
+                case 0: // Send Messages
+                    processMessageBatch();
+                    break;
+                case 1: // View Reports
+                    showReportingMenu();
+                    break;
+                case 2: // Quit
+                default: // Also handles closing the dialog
+                    continueMessaging = false;
+                    break;
+            }
+        }
+        JOptionPane.showMessageDialog(null, "Exiting QuickChat. Goodbye!", "Exit", JOptionPane.INFORMATION_MESSAGE);
+        System.exit(0);
+    }
+    
+    /**
+     * Handles sending a bunch of messages.
      */
     private void processMessageBatch() {
         String numMessagesStr = JOptionPane.showInputDialog(null,
                 "How many messages would you like to process?",
                 "Number of Messages", JOptionPane.QUESTION_MESSAGE);
-
-        if (numMessagesStr == null || numMessagesStr.trim().isEmpty()) {
-            JOptionPane.showMessageDialog(null, "Number of messages not provided. Returning to menu.", "Input Missing", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
+        
+        if (numMessagesStr == null) return; // User cancelled
 
         int numMessages;
         try {
             numMessages = Integer.parseInt(numMessagesStr);
+            if (numMessages <= 0) {
+                JOptionPane.showMessageDialog(null, "Please enter a positive number.", "Input Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
         } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(null, "Invalid number entered. Please use digits.", "Input Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        if (numMessages <= 0) {
-            JOptionPane.showMessageDialog(null, "Please enter a positive number of messages.", "Input Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Invalid number. Please enter digits only.", "Input Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         for (int i = 0; i < numMessages; i++) {
-            JOptionPane.showMessageDialog(null, "Processing Message " + (i + 1) + " of " + numMessages, "Message Progress", JOptionPane.INFORMATION_MESSAGE);
+            String recipient = JOptionPane.showInputDialog(null, "Message " + (i + 1) + "/" + numMessages + "\nEnter recipient's cell (+27...):", "Recipient", JOptionPane.PLAIN_MESSAGE);
+            if (recipient == null) continue; // Skip if user cancels
 
-            String recipient = JOptionPane.showInputDialog(null, "Enter recipient's cell number (e.g., +27718693002):", "Message " + (i + 1) + " - Recipient", JOptionPane.PLAIN_MESSAGE);
-            if (recipient == null) {
-                JOptionPane.showMessageDialog(null, "Recipient input cancelled for Message " + (i + 1) + ". Skipping.", "Cancelled", JOptionPane.WARNING_MESSAGE);
+            String payload = JOptionPane.showInputDialog(null, "Enter message (max 250 chars):", "Message Text", JOptionPane.PLAIN_MESSAGE);
+            if (payload == null) continue; // Skip if user cancels
+            
+            // Create the message object
+            MessageLogic currentMessage = new MessageLogic(currentSender, recipient, payload);
+
+            // Check if details are valid before doing anything else
+            if (!currentMessage.isRecipientNumberValid()) {
+                JOptionPane.showMessageDialog(null, "Invalid phone number format. Must be like +27123456789.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                continue;
+            }
+            if (!currentMessage.isPayloadLengthValid()) {
+                JOptionPane.showMessageDialog(null, "Message is too long. Max 250 characters.", "Validation Error", JOptionPane.ERROR_MESSAGE);
                 continue;
             }
 
-            String payload = JOptionPane.showInputDialog(null, "Enter message payload:", "Message " + (i + 1) + " - Payload", JOptionPane.PLAIN_MESSAGE);
-            if (payload == null) {
-                JOptionPane.showMessageDialog(null, "Payload input cancelled for Message " + (i + 1) + ". Skipping.", "Cancelled", JOptionPane.WARNING_MESSAGE);
-                continue;
-            }
+            // Ask user what to do with the message
+            String[] actions = {"Send", "Store for Later", "Disregard"};
+            int actionChoice = JOptionPane.showOptionDialog(null, "What to do with this message?", "Action",
+                    JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, actions, actions[0]);
 
-            MessageLogic currentMessage = new MessageLogic(recipient, payload);
-            JOptionPane.showMessageDialog(null, currentMessage.getGeneratedIdNotification(), "Message ID", JOptionPane.INFORMATION_MESSAGE);
-
-            // Perform validations before offering actions
-            String recipientValidationMsg = currentMessage.validateRecipientNumber(currentMessage.getMessageRecipient());
-            if (!recipientValidationMsg.equals("Cell phone number successfully captured.")) {
-                JOptionPane.showMessageDialog(null, "Validation Failed for Message " + (i + 1) + ":\n" + recipientValidationMsg, "Recipient Error", JOptionPane.ERROR_MESSAGE);
-                continue; // Skip to next message
-            }
-
-            String payloadValidationMsg = currentMessage.validatePayloadLength(currentMessage.getMessagePayload());
-            if (!payloadValidationMsg.equals("Message ready to send.")) {
-                JOptionPane.showMessageDialog(null, "Validation Failed for Message " + (i + 1) + ":\n" + payloadValidationMsg, "Payload Error", JOptionPane.ERROR_MESSAGE);
-                continue; // Skip to next message
-            }
-
-            String[] options = {"Send Message", "Store Message", "Disregard Message"};
-            int actionChoice = JOptionPane.showOptionDialog(null,
-                    "Choose an action for this message:\nTo: " + currentMessage.getMessageRecipient() + "\nMessage: " + currentMessage.getMessagePayload().substring(0, Math.min(currentMessage.getMessagePayload().length(), 50)) + "...",
-                    "Message " + (i + 1) + " - Action",
-                    JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
-
-            String resultMessage;
             switch (actionChoice) {
-                case 0: // Send Message
-                    resultMessage = currentMessage.sentMessage();
-                    JOptionPane.showMessageDialog(null, resultMessage, "Send Status", JOptionPane.INFORMATION_MESSAGE);
-                    if (resultMessage.equals("Message sent successfully")) {
-                        JOptionPane.showMessageDialog(null, "Details of sent message:\nID: " + currentMessage.getMessageID() + "\nRecipient: " + currentMessage.getMessageRecipient() + "\nPayload: " + currentMessage.getMessagePayload() + "\nIndex: " + currentMessage.getMessageIndex() + "\nHash: " + currentMessage.getMessageHash(), "Sent Message Details", JOptionPane.INFORMATION_MESSAGE);
-                        String storeSentResult = currentMessage.storeMessage();
-                        JOptionPane.showMessageDialog(null, "Sent message also stored: " + storeSentResult, "Store Status", JOptionPane.INFORMATION_MESSAGE);
-                    }
+                case 0: // Send
+                    reportingLogic.addMessage(currentMessage, MessageLogic.MessageStatus.SENT);
+                    JOptionPane.showMessageDialog(null, "Message sent!\nHash: " + currentMessage.getMessageHash(), "Success", JOptionPane.INFORMATION_MESSAGE);
                     break;
-                case 1: // Store Message
-                    resultMessage = currentMessage.storeMessage();
-                    JOptionPane.showMessageDialog(null, resultMessage, "Store Status", JOptionPane.INFORMATION_MESSAGE);
+                case 1: // Store for Later
+                    reportingLogic.addMessage(currentMessage, MessageLogic.MessageStatus.STORED);
+                    // Also save it to a JSON file for the next time we run the app
+                    String saveResult = reportingLogic.storeMessageAsJson(currentMessage);
+                    JOptionPane.showMessageDialog(null, "Message stored in this session.\n" + saveResult, "Success", JOptionPane.INFORMATION_MESSAGE);
                     break;
-                case 2: // Disregard Message
-                    JOptionPane.showMessageDialog(null, "Message disregarded by user.", "Disregarded", JOptionPane.INFORMATION_MESSAGE);
-                    break;
+                case 2: // Disregard
                 default:
-                    JOptionPane.showMessageDialog(null, "No action selected for message " + (i + 1) + ".", "Action Skipped", JOptionPane.WARNING_MESSAGE);
+                    reportingLogic.addMessage(currentMessage, MessageLogic.MessageStatus.DISREGARDED);
+                    JOptionPane.showMessageDialog(null, "Message disregarded.", "Disregarded", JOptionPane.WARNING_MESSAGE);
                     break;
             }
         }
-        JOptionPane.showMessageDialog(null, "Batch processing complete. Total messages successfully sent in this session: " + MessageLogic.returnTotalMessages(), "Batch Summary", JOptionPane.INFORMATION_MESSAGE);
     }
-
+    
     /**
-     * Main method to launch the messaging application.
+     * Shows the new reporting menu for Part 3.
      */
-    public static void main(String[] args) {
-        MessageUI ui = new MessageUI();
-        ui.startMessagingInteraction();
+    private void showReportingMenu() {
+        boolean inReportMenu = true;
+        while(inReportMenu) {
+            String[] reportOptions = {
+                "Show Sent Senders/Recipients", 
+                "Show Longest Sent Message", 
+                "Search by Message ID",
+                "Search by Recipient",
+                "Delete Message by Hash",
+                "Display Full Report",
+                "Back to Main Menu"
+            };
+            int reportChoice = JOptionPane.showOptionDialog(null, "Select a report to view:", "Reporting Menu", 
+                    JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, reportOptions, reportOptions[0]);
+
+            String result;
+            String userInput;
+
+            switch (reportChoice) {
+                case 0: // Show Sent Senders/Recipients
+                    result = reportingLogic.getSentMessagesDetails();
+                    JOptionPane.showMessageDialog(null, result, "Sent Message Details", JOptionPane.INFORMATION_MESSAGE);
+                    break;
+                case 1: // Show Longest Sent Message
+                    result = reportingLogic.getLongestSentMessage();
+                    JOptionPane.showMessageDialog(null, result, "Longest Sent Message", JOptionPane.INFORMATION_MESSAGE);
+                    break;
+                case 2: // Search by Message ID
+                    userInput = JOptionPane.showInputDialog("Enter the Message ID to search for:");
+                    if (userInput != null) {
+                        result = reportingLogic.searchByMessageID(userInput);
+                        JOptionPane.showMessageDialog(null, result, "Search Result", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                    break;
+                case 3: // Search by Recipient
+                    userInput = JOptionPane.showInputDialog("Enter the recipient's number to search for:");
+                    if (userInput != null) {
+                        result = reportingLogic.searchByRecipient(userInput);
+                        JOptionPane.showMessageDialog(null, result, "Search Result", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                    break;
+                case 4: // Delete Message by Hash
+                    userInput = JOptionPane.showInputDialog("Enter the Message Hash to delete:");
+                    if (userInput != null) {
+                        result = reportingLogic.deleteMessageByHash(userInput);
+                        JOptionPane.showMessageDialog(null, result, "Delete Result", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                    break;
+                case 5: // Display Full Report
+                    result = reportingLogic.generateFullReport();
+                    JOptionPane.showMessageDialog(null, result, "Full Report", JOptionPane.INFORMATION_MESSAGE);
+                    break;
+                case 6: // Back to Main Menu
+                default:
+                    inReportMenu = false;
+                    break;
+            }
+        }
     }
 }

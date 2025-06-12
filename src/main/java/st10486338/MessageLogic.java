@@ -1,109 +1,62 @@
 package st10486338;
 
-import org.json.simple.JSONObject;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.regex.Pattern;
 import java.util.Random;
 
 /**
  *
  * @author Onthatile Lesatsi
+ * This class just holds all the info for a single message.
  */
 public class MessageLogic {
+    // Info for one message
     private String messageID;
     private String messageRecipient;
     private String messagePayload;
-    private int messageIndex;
     private String messageHash;
-    private static int totalMessages = 0;
+    private String sender; // Who sent the message
+    
+    // To keep track of the message status
+    private MessageStatus status;
 
-    public MessageLogic(String recipient, String payload) {
+    public enum MessageStatus {
+        SENT,
+        STORED,
+        DISREGARDED
+    }
+
+    /**
+     * Constructor to create a new message during runtime.
+     * It automatically generates a unique message ID.
+     */
+    public MessageLogic(String sender, String recipient, String payload) {
+        this.sender = sender;
         this.messageRecipient = recipient;
         this.messagePayload = payload;
-        this.messageIndex = 0;
-        this.messageHash = "";
+        
+        // Make a random 10-digit ID for the message
         Random rand = new Random();
-        this.messageID = String.format("%010d", Math.abs(rand.nextInt(1000000000)));
+        this.messageID = String.format("%010d", rand.nextInt(1000000000));
+        
+        // Not processed yet
+        this.messageHash = ""; 
+        this.status = null; 
+    }
+    
+    /**
+     * New constructor for loading a complete message from a data source like a JSON file.
+     * This allows us to re-create a message object exactly as it was saved.
+     */
+    public MessageLogic(String id, String sender, String recipient, String payload, String hash, MessageStatus status) {
+        this.messageID = id;
+        this.sender = sender;
+        this.messageRecipient = recipient;
+        this.messagePayload = payload;
+        this.messageHash = hash;
+        this.status = status;
     }
 
-    public String validateRecipientNumber(String recipient) {
-        if (recipient == null || !recipient.matches("^\\+27\\d{9}$")) {
-            return "Cell phone number is incorrectly formatted or does not contain an international code. Please correct the number and try again.";
-        } else {
-            return "Cell phone number successfully captured.";
-        }
-    }
 
-    public String validatePayloadLength(String payload) {
-        if (payload == null) {
-            return "Message exceeds 250 characters by -250, please reduce size.";
-        }
-        int length = payload.length();
-        if (length > 250) {
-            int excess = length - 250;
-            return "Message exceeds 250 characters by " + excess + ", please reduce size.";
-        } else {
-            return "Message ready to send.";
-        }
-    }
-
-    public String createMessageHash(String messageID, int messageIndex, String messagePayload) {
-        String firstTwoID = messageID.substring(0, 2).toUpperCase();
-        String wordPart = "";
-        String[] words = messagePayload.trim().split("\\s+");
-        if (words.length >= 2) {
-            wordPart = words[0].toUpperCase() + words[words.length - 1].toUpperCase();
-        } else if (words.length == 1) {
-            wordPart = words[0].toUpperCase() + words[0].toUpperCase();
-        }
-        return firstTwoID + ":" + messageIndex + ":" + wordPart;
-    }
-
-    public String sentMessage() {
-        if (messagePayload == null || messagePayload.trim().isEmpty()) {
-            return "Failed to send message: Message content cannot be empty";
-        }
-        String recipientValidation = validateRecipientNumber(messageRecipient);
-        if (!recipientValidation.equals("Cell phone number successfully captured.")) {
-            return "Failed to send message: Invalid recipient";
-        }
-        String payloadValidation = validatePayloadLength(messagePayload);
-        if (!payloadValidation.equals("Message ready to send.")) {
-            return "Failed to send message: Payload too long";
-        }
-        totalMessages++;
-        messageIndex = totalMessages;
-        messageHash = createMessageHash(messageID, messageIndex, messagePayload);
-        return "Message sent successfully";
-    }
-
-    public String storeMessage() {
-        JSONObject json = new JSONObject();
-        json.put("MESSAGE_ID", messageID);
-        json.put("MESSAGE_RECIPIENT", messageRecipient);
-        json.put("MESSAGE_PAYLOAD", messagePayload);
-        json.put("MESSAGE_INDEX", messageIndex);
-        json.put("MESSAGE_HASH", messageHash);
-        String fileName = "message_" + messageIndex + ".json";
-        try {
-            FileWriter file = new FileWriter(fileName);
-            file.write(json.toString());
-            file.close();
-            return "Message successfully stored.";
-        } catch (IOException e) {
-            return "Failed to store message: " + e.getMessage();
-        }
-    }
-
-    public static void resetMessageCounterForTesting() {
-        totalMessages = 0;
-    }
-
-    public static int returnTotalMessages() {
-        return totalMessages;
-    }
-
+    // --- Getters to access message info ---
     public String getMessageID() {
         return messageID;
     }
@@ -116,15 +69,47 @@ public class MessageLogic {
         return messagePayload;
     }
 
-    public int getMessageIndex() {
-        return messageIndex;
-    }
-
     public String getMessageHash() {
         return messageHash;
     }
+    
+    public String getSender() {
+        return sender;
+    }
 
-    public String getGeneratedIdNotification() {
-        return "Message ID generated: " + messageID;
+    public MessageStatus getStatus() {
+        return status;
+    }
+
+    // --- Setters to update message info ---
+    public void setMessageHash(String messageHash) {
+        this.messageHash = messageHash;
+    }
+    
+    public void setStatus(MessageStatus status) {
+        this.status = status;
+    }
+
+    // --- Validation Methods from POE ---
+
+    // Check if the phone number looks right (+27 and 9 more digits)
+    public boolean isRecipientNumberValid() {
+        // OpenAI, 2024. Regular expression for South African phone number.
+        // https://chat.openai.com/
+        return messageRecipient != null && messageRecipient.matches("^\\+27\\d{9}$");
+    }
+
+    // Check if the message isn't too long
+    public boolean isPayloadLengthValid() {
+        return messagePayload != null && messagePayload.length() <= 250;
+    }
+    
+    // Get a nice string with all the details of this message
+    public String getMessageDetails() {
+        return "Message Hash: " + messageHash + "\n" +
+               "Sender: " + sender + "\n" +
+               "Recipient: " + messageRecipient + "\n" +
+               "Message: " + messagePayload + "\n" +
+               "Status: " + status;
     }
 }
